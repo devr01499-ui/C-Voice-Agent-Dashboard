@@ -1,0 +1,14 @@
+# Build Plan
+
+## Phase 1: Foundation
+- [x] Initialize Governance Files
+- [ ] Setup Production Credentials (Supabase)
+- [ ] Refine Supabase Client initialization
+
+## Phase 2: Feature Development
+- [ ] Implement Auth flow
+- [ ] Connect dashboard to Supabase DB
+
+## Phase 3: Production Readiness
+- [ ] Finalize environment configurations
+- [ ] Security audit of RLS rules

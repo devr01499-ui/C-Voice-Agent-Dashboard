@@ -1,0 +1,8 @@
+{
+  "name": "Clarity Dashboard",
+  "description": "Modern SaaS dashboard for AI-powered recruitment calling with Google Sheets and n8n integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
