@@ -8,6 +8,19 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss()],
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-ui': ['lucide-react', 'motion', 'clsx', 'tailwind-merge'],
+            'vendor-charts': ['recharts'],
+            'vendor-utils': ['date-fns', '@supabase/supabase-js']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 600
+    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },

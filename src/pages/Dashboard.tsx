@@ -44,28 +44,18 @@ export default function Dashboard() {
 
     const fetchStats = async () => {
       try {
-        // Fetch real stats from Supabase
-        const { count: totalCalls } = await supabase
-          .from("reports")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
-        
-        const { count: completedCalls } = await supabase
-          .from("reports")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .neq("status", "pending");
-        
-        const { count: interestedCount } = await supabase
-          .from("reports")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("status", "interested");
-        
-        const { data: reportsData } = await supabase
-          .from("reports")
-          .select("duration")
-          .eq("user_id", user.id);
+        // Parallelize requests for better performance
+        const [
+          { count: totalCalls },
+          { count: completedCalls },
+          { count: interestedCount },
+          { data: reportsData }
+        ] = await Promise.all([
+          supabase.from("reports").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+          supabase.from("reports").select("*", { count: "exact", head: true }).eq("user_id", user.id).neq("status", "pending"),
+          supabase.from("reports").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "interested"),
+          supabase.from("reports").select("duration").eq("user_id", user.id)
+        ]);
         
         const totalMinutes = reportsData?.reduce((acc, curr) => acc + (curr.duration || 0), 0) || 0;
 
