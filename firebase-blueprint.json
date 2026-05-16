@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about the recruitment client",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "webhookUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyName", "createdAt"]
+    },
+    "Campaign": {
+      "title": "Calling Campaign",
+      "description": "Details of an AI calling campaign",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "agentName": { "type": "string" },
+        "scheduleTime": { "type": "string", "format": "date-time" },
+        "googleSheetLink": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "active", "completed"] },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "agentName", "userId", "createdAt"]
+    },
+    "Report": {
+      "title": "Call Report",
+      "description": "Details of an individual candidate call outcome",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "userId": { "type": "string" },
+        "candidateName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "jobRole": { "type": "string" },
+        "status": { "type": "string", "enum": ["interested", "not_interested", "no_answer"] },
+        "callResult": { "type": "string" },
+        "feedback": { "type": "string" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "cost": { "type": "number", "description": "Cost in INR" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["campaignId", "userId", "candidateName", "phoneNumber", "createdAt"]
+    },
+    "Billing": {
+      "title": "Billing Record",
+      "description": "Financial summaries for the client",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "totalMinutes": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "lastPaymentDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "totalMinutes", "totalCost", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Campaign data"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Detailed call reports"
+    },
+    "/billing/{billingId}": {
+      "schema": "Billing",
+      "description": "Billing information"
+    }
+  }
+}

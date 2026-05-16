@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['companyName', 'createdAt']) &&
+             data.companyName is string && data.companyName.size() <= 100;
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['name', 'agentName', 'userId', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             data.agentName is string && data.agentName.size() <= 100;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['campaignId', 'userId', 'candidateName', 'phoneNumber', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.candidateName is string && data.candidateName.size() <= 100 &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 20;
+    }
+
+    function isValidBilling(data) {
+      return data.keys().hasAll(['userId', 'totalMinutes', 'totalCost', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.totalMinutes is number && data.totalCost is number;
+    }
+
+    // Collection: Users
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['companyName', 'logoUrl', 'webhookUrl']));
+    }
+
+    // Collection: Campaigns
+    match /campaigns/{campaignId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidCampaign(request.resource.data);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && 
+                      isValidCampaign(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'agentName', 'scheduleTime', 'googleSheetLink', 'status']);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Collection: Reports
+    match /reports/{reportId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidReport(request.resource.data);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+                      isValidReport(request.resource.data);
+    }
+
+    // Collection: Billing
+    match /billing/{billingId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidBilling(request.resource.data);
+    }
+  }
+}
