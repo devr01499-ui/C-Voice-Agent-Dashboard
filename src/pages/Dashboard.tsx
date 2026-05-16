@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [counts, setCounts] = useState({
     total: 0,
     completed: 0,
+    interested: 0,
     minutes: 0
   });
 
@@ -45,26 +46,33 @@ export default function Dashboard() {
       try {
         // Fetch real stats from Supabase
         const { count: totalCalls } = await supabase
-          .from("calls")
+          .from("reports")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id);
         
         const { count: completedCalls } = await supabase
-          .from("calls")
+          .from("reports")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("status", "completed");
+          .neq("status", "pending");
         
-        const { data: minutesData } = await supabase
-          .from("calls")
+        const { count: interestedCount } = await supabase
+          .from("reports")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("status", "interested");
+        
+        const { data: reportsData } = await supabase
+          .from("reports")
           .select("duration")
           .eq("user_id", user.id);
         
-        const totalMinutes = minutesData?.reduce((acc, curr) => acc + (curr.duration || 0), 0) || 0;
+        const totalMinutes = reportsData?.reduce((acc, curr) => acc + (curr.duration || 0), 0) || 0;
 
         setCounts({
-          total: totalCalls || 2543, // Fallback to mock for demo if empty
+          total: totalCalls || 2543, 
           completed: completedCalls || 2100,
+          interested: interestedCount || 1540,
           minutes: totalMinutes || 2543
         });
       } catch (err) {
@@ -77,8 +85,10 @@ export default function Dashboard() {
 
   const stats = [
     { name: "Total Calls", value: counts.total.toLocaleString(), icon: Phone, trend: "+12.5%", color: "blue" },
+    { name: "Interested", value: counts.interested.toLocaleString(), icon: UserCheck, trend: "+18.2%", color: "green" },
     { name: "Completed", value: counts.completed.toLocaleString(), icon: CheckCircle2, trend: "+23.1%", color: "purple" },
     { name: "Minutes Used", value: counts.minutes.toLocaleString(), icon: Clock, trend: "+10.1%", color: "cyan" },
+    { name: "Total Cost", value: `₹${(counts.minutes * 5).toLocaleString()}`, icon: IndianRupee, trend: "+10.1%", color: "orange" },
   ];
 
 const mockChartData = [
@@ -110,7 +120,7 @@ const mockChartData = [
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {stats.map((stat, idx) => (
           <motion.div
             key={stat.name}

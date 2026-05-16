@@ -18,6 +18,7 @@ export default function Settings() {
   
   // Profile states
   const [companyName, setCompanyName] = useState(profile?.company_name || "");
+  const [logoUrl, setLogoUrl] = useState(profile?.logo_url || "");
   const [webhookUrl, setWebhookUrl] = useState(profile?.webhook_url || "");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
@@ -38,6 +39,7 @@ export default function Settings() {
         .from("profiles")
         .update({
           company_name: companyName,
+          logo_url: logoUrl,
           webhook_url: webhookUrl,
           updated_at: new Date().toISOString()
         })
@@ -118,6 +120,27 @@ export default function Settings() {
                     placeholder="Clarity"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Company Logo URL</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl flex items-center justify-center overflow-hidden">
+                      {profile?.logo_url ? (
+                        <img src={profile.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="w-6 h-6 text-[#BBB]" />
+                      )}
+                    </div>
+                    <input 
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
+                    />
+                  </div>
+                  <p className="text-[10px] text-[#888] ml-1">Upload to a host and paste the link here for branding.</p>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Webhook URL (n8n)</label>
                   <div className="relative group">
