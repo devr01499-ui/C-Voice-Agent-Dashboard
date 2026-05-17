@@ -51,4 +51,16 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// Audit log report exports
+router.post('/log-export', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { supabase, logSystemEvent } = await import('../utils/db.js');
+    await logSystemEvent(req.user.id, 'REPORT_EXPORTED', 'SUCCESS', `User exported reports to CSV`);
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error("Failed to log export:", err);
+    return res.status(500).json({ success: false });
+  }
+});
+
 export default router;

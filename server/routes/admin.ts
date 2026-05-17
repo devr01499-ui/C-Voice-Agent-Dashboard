@@ -61,4 +61,40 @@ router.get('/logs', requireAuth, requireAdmin, async (req: AuthRequest, res) => 
   }
 });
 
+// Get global stats for AdminDashboard
+router.get('/global-stats', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const [
+      { count: usersCount },
+      { count: campaignsCount },
+      { data: callReports },
+      { count: logsCount }
+    ] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('campaigns').select('*', { count: 'exact', head: true }),
+      supabase.from('call_reports').select('duration, result'),
+      supabase.from('system_logs').select('*', { count: 'exact', head: true }).eq('status', 'FAILED')
+    ]);
+
+    const totalCalls = callReports?.length || 0;
+    const totalDuration = callReports?.reduce((acc, curr) => acc + (curr.duration || 0), 0) || 0;
+    const totalMinutes = Math.ceil(totalDuration / 60);
+
+    return res.json({
+      success: true,
+      stats: {
+        users: usersCount || 0,
+        campaigns: campaignsCount || 0,
+        calls: totalCalls,
+        revenue: totalMinutes * 5,
+        minutes: totalMinutes,
+        failedWorkflows: logsCount || 0
+      }
+    });
+  } catch (error: any) {
+    console.error("Failed to fetch global stats:", error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch global stats' });
+  }
+});
+
 export default router;

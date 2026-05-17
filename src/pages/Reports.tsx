@@ -74,7 +74,22 @@ export default function Reports() {
     (r.role || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
+    // Log the export event in the background
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/reports/log-export`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        }).catch(console.error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     const headers = ["Candidate", "Phone", "Role", "Status", "Duration (min)", "Cost (INR)", "Feedback", "Campaign"];
     const rows = filteredReports.map(r => [
       r.candidate_name,

@@ -23,13 +23,14 @@ import { motion } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
+import { AdminDashboard } from "../components/AdminDashboard";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, adminMode } = useAuth();
   const navigate = useNavigate();
   const [counts, setCounts] = useState({
     total: 0,
@@ -41,7 +42,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || adminMode) return;
 
     const fetchStats = async () => {
       setLoading(true);
@@ -90,7 +91,7 @@ export default function Dashboard() {
     };
 
     fetchStats();
-  }, [user, dateFilter]);
+  }, [user, dateFilter, adminMode]);
 
   const stats = [
     { name: "Total Calls", value: counts.total.toLocaleString(), icon: Phone, color: "blue" },
@@ -115,6 +116,10 @@ export default function Dashboard() {
     { name: "Week 4", calls: 80, cost: 400 },
   ];
 
+  if (adminMode) {
+    return <AdminDashboard />;
+  }
+
   return (
     <div className="space-y-8 pb-12">
       {/* Welcome Section */}
@@ -126,14 +131,14 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => navigate('/reports')}
-            className="px-4 py-2 bg-white border border-[#E5E5E5] rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2 transition-colors"
+            className="px-4 py-2 bg-white border border-[#E5E5E5] rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2 transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Download Reports
           </button>
           <button 
             onClick={() => navigate('/campaigns')}
-            className="px-4 py-2 bg-black text-white rounded-xl text-sm font-semibold hover:bg-gray-800 flex items-center gap-2 transition-colors shadow-sm"
+            className="px-4 py-2 bg-black text-white rounded-xl text-sm font-semibold hover:bg-gray-800 flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             New Campaign
@@ -192,19 +197,19 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 bg-[#F5F5F5] p-1 rounded-xl">
             <button 
               onClick={() => setDateFilter("24hours")}
-              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", dateFilter === "24hours" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
+              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer", dateFilter === "24hours" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
             >
               24h
             </button>
             <button 
               onClick={() => setDateFilter("7days")}
-              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", dateFilter === "7days" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
+              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer", dateFilter === "7days" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
             >
               7 Days
             </button>
             <button 
               onClick={() => setDateFilter("30days")}
-              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors", dateFilter === "30days" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
+              className={cn("px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer", dateFilter === "30days" ? "bg-white shadow-sm text-black" : "text-[#666] hover:text-black")}
             >
               30 Days
             </button>
