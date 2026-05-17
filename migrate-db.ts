@@ -112,11 +112,10 @@ BEGIN
     
     -- Users can read their own
     CREATE POLICY "Users can read own data" ON users FOR SELECT USING (auth.uid() = id);
-    -- Admins can read all (assuming we have a way to verify admin without recursion - simpler is to just let auth handle this via jwt claims or a secure view, but for MVP we will use a subquery)
-    -- Actually, to prevent infinite recursion, we just check if the current user's role is 'admin'
-    CREATE POLICY "Admins can read all users" ON users FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
+    
+    -- Admins read all via Service Role on backend, so we DO NOT create an RLS policy for admins here
+    -- to prevent infinite recursion on the users table.
+    
     -- Users can insert own
     CREATE POLICY "Users can insert own data" ON users FOR INSERT WITH CHECK (auth.uid() = id);
     -- Users can update own non-role fields. But RLS can't easily restrict column updates without triggers. We will rely on Backend APIs.
@@ -130,9 +129,8 @@ BEGIN
 
     -- System Logs
     CREATE POLICY "Users can view own logs" ON system_logs FOR SELECT USING (auth.uid() = user_id);
-    CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
+    
+    -- Again, no admin RLS for system_logs since admins fetch via backend.
 END $$;
 `;
 
