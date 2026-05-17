@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
@@ -26,29 +26,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [adminMode, setAdminMode] = useState(false);
 
-  // Sync admin mode whenever profile loads/changes
+  // Track whether initial session has been resolved to prevent double-fetch
+  const initializedRef = useRef(false);
+
+  // Sync adminMode whenever profile changes
   useEffect(() => {
-    if (profile?.role === 'admin') {
-      setAdminMode(true);
-    } else {
-      setAdminMode(false);
-    }
+    setAdminMode(profile?.role === "admin");
   }, [profile]);
 
   const toggleAdminMode = useCallback(() => {
-    // Only admins can toggle modes
-    if (profile?.role === 'admin') {
-      setAdminMode(prev => !prev);
-      
-      // Log mode switch attempt
+    if (profile?.role === "admin") {
+      setAdminMode((prev) => !prev);
+      // Fire-and-forget audit log
       supabase.from("system_logs").insert({
-        user_id: user?.id,
-        event: 'ADMIN_MODE_TOGGLED',
-        status: 'SUCCESS',
-        details: { new_mode: !adminMode ? 'admin' : 'user' }
-      }).catch(console.error);
+        user_id: profile.id,
+        event: "ADMIN_MODE_TOGGLED",
+        status: "SUCCESS",
+        details: {},
+      }).catch(() => {});
     }
-  }, [profile, adminMode, user]);
+  }, [profile]);
 
   const fetchProfile = async (userId: string, retries = 3): Promise<void> => {
     try {
@@ -59,13 +56,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error && error.code === "PGRST116") {
-        // Profile row not yet created by DB trigger — retry with backoff
+        // Profile not yet created by trigger — retry with 1s backoff
         if (retries > 0) {
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise((r) => setTimeout(r, 1000));
           return fetchProfile(userId, retries - 1);
         }
-        // Out of retries — fail gracefully, don't block the app
-        console.error("Profile not found after retries — trigger may have failed.");
+        console.warn("Profile not found after retries.");
         setProfile(null);
       } else if (error) {
         console.error("Profile fetch error:", error.message);
@@ -77,38 +73,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Unexpected profile fetch error:", err);
       setProfile(null);
     }
-    // Always stop loading at the end of this call, including the final retry
-    setLoading(false);
   };
 
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      if (session?.user) {
-        setUser(session.user);
-        fetchProfile(session.user.id); // fetchProfile sets loading(false) internally
-      } else {
-        setLoading(false);
-      }
-    });
+    const initialize = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (event === 'SIGNED_IN' && currentUser) {
-        setLoading(true);
-        await fetchProfile(currentUser.id); // fetchProfile sets loading(false) internally
-      } else if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        setAdminMode(false);
-        setLoading(false);
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        }
+      } catch (err) {
+        console.error("Session init error:", err);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          initializedRef.current = true;
+        }
       }
-    });
+    };
+
+    initialize();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        // Skip events that fire during the initial session load
+        if (!initializedRef.current) return;
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (event === "SIGNED_IN" && currentUser) {
+          setLoading(true);
+          try {
+            await fetchProfile(currentUser.id);
+          } finally {
+            if (mounted) setLoading(false);
+          }
+        } else if (event === "SIGNED_OUT") {
+          setProfile(null);
+          setAdminMode(false);
+          setLoading(false);
+        }
+      }
+    );
 
     return () => {
       mounted = false;
