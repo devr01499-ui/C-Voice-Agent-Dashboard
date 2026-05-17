@@ -8,8 +8,11 @@ type AuthMode = "login" | "signup" | "forgot";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -45,21 +48,30 @@ export default function AuthPage() {
         if (error) throw error;
         navigate("/");
       } else if (mode === "signup") {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
+        if (password.length < 6) {
+          throw new Error("Password must be at least 6 characters long");
+        }
+
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
             data: {
-              company_name: "My Company",
+              full_name: fullName,
+              company_name: companyName,
             }
           }
         });
         if (error) throw error;
         
         if (data.user) {
-          // Profile creation is typically handled by fetchProfile in AuthContext or a DB trigger
-          // But we can also do it here if needed.
-          setMessage("Account created! Please check your email for verification.");
+          setMessage("Account created! Please check your email for verification. Or you may be logged in automatically.");
+          if (data.session) {
+            navigate("/");
+          }
         }
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -130,7 +142,7 @@ export default function AuthPage() {
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="flex items-center justify-center gap-3 w-full py-3 border border-[#E5E5E5] rounded-2xl hover:bg-gray-50 transition-all font-semibold text-sm disabled:opacity-50"
+                  className="flex items-center justify-center gap-3 w-full py-3 border border-[#E5E5E5] rounded-2xl hover:bg-gray-50 transition-all font-semibold text-sm disabled:opacity-50 cursor-pointer"
                 >
                   <Chrome className="w-5 h-5" />
                   Continue with Google
@@ -142,7 +154,7 @@ export default function AuthPage() {
                   <span className="w-full border-t border-[#E5E5E5]" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-4 text-[#888888] font-bold tracking-widest leading-none">Or continue with</span>
+                  <span className="bg-white px-4 text-[#888888] font-bold tracking-widest leading-none">Or continue with email</span>
                 </div>
               </div>
             </>
@@ -150,6 +162,33 @@ export default function AuthPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Company Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Acme Corp"
+                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm"
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Email address</label>
               <input
@@ -170,7 +209,7 @@ export default function AuthPage() {
                     <button 
                       type="button"
                       onClick={() => setMode("forgot")}
-                      className="text-[10px] font-bold text-black hover:underline"
+                      className="text-[10px] font-bold text-black hover:underline cursor-pointer"
                     >
                       Forgot?
                     </button>
@@ -187,10 +226,24 @@ export default function AuthPage() {
               </div>
             )}
 
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Confirm Password</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all text-sm"
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-black/10"
+              className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-black/10 cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -209,15 +262,15 @@ export default function AuthPage() {
           <div className="text-center space-y-4">
             {mode === "forgot" ? (
               <button
-                onClick={() => setMode("login")}
-                className="text-sm font-semibold text-[#666666] hover:text-black transition-colors"
+                onClick={() => { setMode("login"); setError(""); setMessage(""); }}
+                className="text-sm font-semibold text-[#666666] hover:text-black transition-colors cursor-pointer"
               >
                 Back to sign in
               </button>
             ) : (
               <button
-                onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                className="text-sm font-semibold text-[#666666] hover:text-black transition-colors"
+                onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setMessage(""); }}
+                className="text-sm font-semibold text-[#666666] hover:text-black transition-colors cursor-pointer"
               >
                 {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
@@ -228,3 +281,4 @@ export default function AuthPage() {
     </div>
   );
 }
+

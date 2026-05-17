@@ -7,7 +7,8 @@ import {
   AlertCircle,
   Loader2,
   Building2,
-  Webhook
+  Table,
+  ExternalLink
 } from "lucide-react";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
@@ -19,7 +20,6 @@ export default function Settings() {
   // Profile states
   const [companyName, setCompanyName] = useState(profile?.company_name || "");
   const [logoUrl, setLogoUrl] = useState(profile?.logo_url || "");
-  const [webhookUrl, setWebhookUrl] = useState(profile?.webhook_url || "");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -36,11 +36,10 @@ export default function Settings() {
     setProfileLoading(true);
     try {
       const { error } = await supabase
-        .from("profiles")
+        .from("users")
         .update({
           company_name: companyName,
           logo_url: logoUrl,
-          webhook_url: webhookUrl,
           updated_at: new Date().toISOString()
         })
         .eq("id", user.id);
@@ -106,7 +105,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <h4 className="font-bold text-lg">Company Profile</h4>
-                  <p className="text-sm text-[#888]">Update your company details and integrations.</p>
+                  <p className="text-sm text-[#888]">Update your company details and logo.</p>
                 </div>
               </div>
 
@@ -117,14 +116,14 @@ export default function Settings() {
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
-                    placeholder="Clarity"
+                    placeholder="Company Name"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Company Logo URL</label>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl flex items-center justify-center overflow-hidden">
+                    <div className="w-16 h-16 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
                       {profile?.logo_url ? (
                         <img src={profile.logo_url} alt="Logo" className="w-full h-full object-cover" />
                       ) : (
@@ -135,23 +134,29 @@ export default function Settings() {
                       value={logoUrl}
                       onChange={(e) => setLogoUrl(e.target.value)}
                       placeholder="https://..."
-                      className="flex-1 px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
+                      className="flex-1 px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black min-w-0"
                     />
                   </div>
                   <p className="text-[10px] text-[#888] ml-1">Upload to a host and paste the link here for branding.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Webhook URL (n8n)</label>
-                  <div className="relative group">
-                    <Webhook className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#BBB] group-focus-within:text-black transition-colors" />
-                    <input 
-                      value={webhookUrl}
-                      onChange={(e) => setWebhookUrl(e.target.value)}
-                      placeholder="https://n8n.your-instance.com/webhook/..."
-                      className="w-full pl-12 pr-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
-                    />
+                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider ml-1">Assigned Google Sheet URL</label>
+                  <div className="relative group flex items-center">
+                    <div className="flex-1 pl-12 pr-4 py-3 bg-[#F5F5F5] border border-[#E5E5E5] rounded-2xl flex items-center overflow-hidden">
+                      <Table className="absolute left-4 w-5 h-5 text-[#888]" />
+                      <span className="text-sm truncate text-[#666]">
+                        {profile?.sheet_url || "No Google Sheet assigned yet. Please contact admin."}
+                      </span>
+                    </div>
+                    {profile?.sheet_url && (
+                      <a href={profile.sheet_url} target="_blank" rel="noreferrer" className="ml-3 p-3 bg-black text-white rounded-xl hover:opacity-90 flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4" />
+                        <span className="text-sm font-bold hidden sm:inline">Open</span>
+                      </a>
+                    )}
                   </div>
+                  <p className="text-[10px] text-[#888] ml-1">This sheet is used for managing candidate data and syncing with campaigns. Assigned by Admin.</p>
                 </div>
               </div>
 
@@ -164,7 +169,7 @@ export default function Settings() {
                     </motion.span>
                   )}
                 </div>
-                <button type="submit" disabled={profileLoading} className="bg-black text-white px-8 py-3 rounded-2xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xl shadow-black/10">
+                <button type="submit" disabled={profileLoading} className="bg-black text-white px-8 py-3 rounded-2xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xl shadow-black/10 cursor-pointer">
                   {profileLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Profile"}
                 </button>
               </div>
@@ -232,7 +237,7 @@ export default function Settings() {
                     </motion.span>
                   )}
                 </div>
-                <button type="submit" disabled={passLoading} className="bg-black text-white px-8 py-3 rounded-2xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xl shadow-black/10">
+                <button type="submit" disabled={passLoading} className="bg-black text-white px-8 py-3 rounded-2xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xl shadow-black/10 cursor-pointer">
                   {passLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Update Password"}
                 </button>
               </div>

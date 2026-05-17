@@ -12,6 +12,12 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import { format } from "date-fns";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export default function Reports() {
   const { user } = useAuth();
@@ -24,14 +30,36 @@ export default function Reports() {
       if (!user) return;
       setLoading(true);
       try {
+        // Fetch campaigns for this user first
+        const { data: campaigns } = await supabase.from('campaigns').select('id, campaign_name').eq('user_id', user.id);
+        const campaignIds = campaigns?.map(c => c.id) || [];
+
+        if (campaignIds.length === 0) {
+          setReports([]);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch call_reports
         const { data, error } = await supabase
-          .from("reports")
+          .from("call_reports")
           .select("*")
-          .eq("user_id", user.id)
+          .in("campaign_id", campaignIds)
           .order("created_at", { ascending: false });
         
         if (error) throw error;
-        setReports(data || []);
+        
+        // Map campaign names back to the reports if needed
+        const enrichedData = data?.map(report => {
+          const campaign = campaigns?.find(c => c.id === report.campaign_id);
+          return {
+            ...report,
+            campaign_name: campaign?.campaign_name || "Unknown",
+            computed_cost: (report.duration || 0) * 5
+          };
+        });
+
+        setReports(enrichedData || []);
       } catch (err) {
         console.error("Error fetching reports:", err);
       } finally {
@@ -43,19 +71,20 @@ export default function Reports() {
 
   const filteredReports = reports.filter(r => 
     (r.candidate_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.job_role || "").toLowerCase().includes(searchTerm.toLowerCase())
+    (r.role || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const exportToCSV = () => {
-    const headers = ["Candidate", "Phone", "Role", "Status", "Duration (min)", "Cost (INR)", "Feedback"];
+    const headers = ["Candidate", "Phone", "Role", "Status", "Duration (min)", "Cost (INR)", "Feedback", "Campaign"];
     const rows = filteredReports.map(r => [
       r.candidate_name,
-      r.phone_number,
-      r.job_role,
-      r.status,
+      r.phone,
+      r.role,
+      r.result,
       r.duration,
-      r.cost,
-      r.feedback
+      r.computed_cost,
+      r.feedback,
+      r.campaign_name
     ]);
     
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -72,22 +101,22 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Call Reports</h2>
           <p className="text-[#666666]">Detailed analytics from your AI calling sessions.</p>
         </div>
         <button
           onClick={exportToCSV}
-          className="bg-white border border-[#E5E5E5] text-black px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all"
+          className="bg-white border border-[#E5E5E5] text-black px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm cursor-pointer"
         >
           <Download className="w-4 h-4" />
           Export CSV
         </button>
       </div>
 
-      <div className="bg-white border border-[#E5E5E5] rounded-3xl overflow-hidden">
+      <div className="bg-white border border-[#E5E5E5] rounded-3xl overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[#E5E5E5] bg-[#FBFCFE] flex flex-col sm:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888888]" />
@@ -96,11 +125,11 @@ export default function Reports() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by candidate or role..."
-              className="w-full pl-10 pr-4 py-2 bg-white border border-[#DDD] rounded-xl text-sm focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-[#DDD] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold border border-[#DDD] rounded-xl flex items-center justify-center gap-2">
+            <button className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold border border-[#DDD] rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer">
               <Filter className="w-4 h-4" />
               Filter
               <ChevronDown className="w-3 h-3 text-gray-400" />
@@ -114,6 +143,7 @@ export default function Reports() {
               <tr>
                 <th className="px-6 py-4">Candidate</th>
                 <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Campaign</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Duration</th>
                 <th className="px-6 py-4">Cost</th>
@@ -122,9 +152,9 @@ export default function Reports() {
             </thead>
             <tbody className="divide-y divide-[#F0F0F0]">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-[#888888]">Loading reports...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-[#888888]">Loading reports...</td></tr>
               ) : filteredReports.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-[#888888]">No reports found</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-[#888888]">No reports found</td></tr>
               ) : filteredReports.map((report) => (
                 <tr key={report.id} className="hover:bg-gray-50 group transition-colors">
                   <td className="px-6 py-4">
@@ -133,32 +163,34 @@ export default function Reports() {
                         <User className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-bold text-sm">{report.candidate_name}</span>
-                        <span className="text-xs text-[#888888]">{report.phone_number}</span>
+                        <span className="font-bold text-sm">{report.candidate_name || 'Unknown Candidate'}</span>
+                        <span className="text-xs text-[#888888]">{report.phone || 'No phone'}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium">{report.job_role}</td>
+                  <td className="px-6 py-4 text-sm font-medium">{report.role || 'General'}</td>
+                  <td className="px-6 py-4 text-sm text-[#666]">{report.campaign_name}</td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       "px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full",
-                      report.status === "interested" && "bg-green-50 text-green-600",
-                      report.status === "not_interested" && "bg-red-50 text-red-600",
-                      report.status === "no_answer" && "bg-gray-50 text-gray-600",
+                      report.result === "interested" && "bg-green-50 text-green-600",
+                      report.result === "not_interested" && "bg-red-50 text-red-600",
+                      report.result === "no_answer" && "bg-gray-50 text-gray-600",
+                      (report.result !== "interested" && report.result !== "not_interested" && report.result !== "no_answer") && "bg-blue-50 text-blue-600"
                     )}>
-                      {report.status?.replace("_", " ")}
+                      {report.result?.replace("_", " ") || "unknown"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-[#666]">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {report.duration}m
+                      {report.duration || 0}m
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm font-bold">
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-0.5 text-orange-600">
                       <IndianRupee className="w-3 h-3" />
-                      {report.cost}
+                      {report.computed_cost}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-xs text-[#888888]">
@@ -173,5 +205,3 @@ export default function Reports() {
     </div>
   );
 }
-
-function cn(...inputs: any[]) { return inputs.filter(Boolean).join(" "); }

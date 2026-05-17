@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("users")
         .select("*")
         .eq("id", userId)
         .single();
@@ -67,14 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error && error.code === "PGRST116") {
         // Profile doesn't exist, create it
         const { data: userData } = await supabase.auth.getUser();
+        const userEmail = userData.user?.email || "";
+        const isAdmin = userEmail === "devr01499@gmail.com";
+        
         const newProfile = {
           id: userId,
           company_name: userData.user?.user_metadata?.company_name || "My Company",
-          logo_url: userData.user?.user_metadata?.avatar_url || "",
-          updated_at: new Date().toISOString(),
+          email: userEmail,
+          role: isAdmin ? "admin" : "user",
+          created_at: new Date().toISOString(),
         };
         const { data: createdProfile } = await supabase
-          .from("profiles")
+          .from("users")
           .upsert(newProfile)
           .select()
           .single();

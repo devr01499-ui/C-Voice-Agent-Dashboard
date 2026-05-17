@@ -8,9 +8,12 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const GoogleSheetPage = lazy(() => import("./pages/GoogleSheet"));
 const Reports = lazy(() => import("./pages/Reports"));
-const Billing = lazy(() => import("./pages/Billing"));
 const Settings = lazy(() => import("./pages/Settings"));
 const AuthPage = lazy(() => import("./pages/Auth"));
+
+// Admin routes
+const Users = lazy(() => import("./pages/Users"));
+const Logs = lazy(() => import("./pages/Dashboard")); // Still a placeholder, didn't create a real logs page yet
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center">
@@ -18,8 +21,8 @@ const LoadingScreen = () => (
   </div>
 );
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -31,6 +34,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  if (requireAdmin && profile?.role !== 'admin') {
+    return <Navigate to="/" />;
   }
 
   return <Layout>{children}</Layout>;
@@ -76,18 +83,27 @@ export default function App() {
               }
             />
             <Route
-              path="/billing"
-              element={
-                <ProtectedRoute>
-                  <Billing />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/settings"
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            {/* Admin Routes */}
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/logs"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Logs />
                 </ProtectedRoute>
               }
             />

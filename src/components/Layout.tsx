@@ -10,7 +10,9 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Activity
 } from "lucide-react";
 import { useAuth } from "../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
@@ -21,18 +23,26 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const menuItems = [
+const userMenuItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
   { name: "Campaigns", path: "/campaigns", icon: Megaphone },
   { name: "Google Sheet", path: "/sheet", icon: Table },
   { name: "Reports", path: "/reports", icon: FileText },
-  { name: "Billing", path: "/billing", icon: CreditCard },
+  { name: "Settings", path: "/settings", icon: Settings },
+];
+
+const adminMenuItems = [
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "All Users", path: "/users", icon: Users },
+  { name: "All Campaigns", path: "/campaigns", icon: Megaphone },
+  { name: "All Reports", path: "/reports", icon: FileText },
+  { name: "System Logs", path: "/logs", icon: Activity },
   { name: "Settings", path: "/settings", icon: Settings },
 ];
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -40,6 +50,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     await signOut();
     navigate("/login");
   };
+
+  const isAdmin = profile?.role === 'admin';
+  const menuItems = isAdmin ? adminMenuItems : userMenuItems;
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-[#1A1A1A] font-sans flex">
@@ -65,7 +78,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       >
         <div className="h-full flex flex-col">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-bottom border-[#E5E5E5]">
+          <div className="h-16 flex items-center px-6 border-b border-[#E5E5E5]">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">C</span>
@@ -110,17 +123,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="p-4 border-t border-[#E5E5E5]">
             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#F9F9F9] mb-4">
               <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-300 overflow-hidden">
-                {profile?.logoUrl ? (
-                  <img src={profile.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                )}
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <Settings className="w-5 h-5" />
+                </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{profile?.companyName || "Client"}</p>
-                <p className="text-xs text-[#888888] truncate">{useAuth().user?.email}</p>
+                <p className="text-sm font-semibold truncate">{profile?.company_name || "Company"}</p>
+                <p className="text-xs text-[#888888] truncate">{user?.email}</p>
               </div>
             </div>
             <button
@@ -151,8 +160,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                Active Client
+              <span className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded-full border",
+                isAdmin ? "text-purple-600 bg-purple-50 border-purple-100" : "text-green-600 bg-green-50 border-green-100"
+              )}>
+                {isAdmin ? "Admin Console" : "Active Client"}
               </span>
             </div>
           </div>

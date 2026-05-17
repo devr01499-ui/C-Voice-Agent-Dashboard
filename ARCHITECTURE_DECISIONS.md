@@ -10,3 +10,8 @@
 - **Decision**: Use Vite for the frontend build tool.
 - **Rationale**: Faster dev cycles and modern ESM support.
 - **Status**: Accepted
+
+## ADR 003: Express Backend API
+- **Decision**: Use an Express.js backend architecture to handle API routes, rather than Next.js serverless functions.
+- **Rationale**: The project was already built around a Vite + React + Express monolith for easier local execution. Maintaining this structure prevents major rewrites while still allowing scale via standard Node.js server deployment (e.g. Railway).
+- **Status**: Accepted

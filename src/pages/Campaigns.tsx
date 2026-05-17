@@ -8,7 +8,8 @@ import {
   Trash2,
   Calendar,
   Link as LinkIcon,
-  Bot
+  Bot,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
@@ -26,7 +27,6 @@ export default function Campaigns() {
   const [name, setName] = useState("");
   const [agentName, setAgentName] = useState("Professional Recruiter Alex");
   const [scheduleTime, setScheduleTime] = useState("");
-  const [sheetLink, setSheetLink] = useState("");
 
   const fetchCampaigns = async () => {
     if (!user) return;
@@ -55,13 +55,18 @@ export default function Campaigns() {
     e.preventDefault();
     if (!user) return;
     
+    if (!profile?.sheet_url) {
+      alert("No Google Sheet assigned to your profile. Please contact the administrator.");
+      return;
+    }
+    
     try {
       const { error } = await supabase.from("campaigns").insert({
         user_id: user.id,
         name,
         agent_name: agentName,
         schedule_time: scheduleTime || new Date().toISOString(),
-        google_sheet_link: sheetLink,
+        google_sheet_link: profile.sheet_url,
         status: "pending"
       });
       
@@ -71,13 +76,14 @@ export default function Campaigns() {
       fetchCampaigns();
       // Reset form
       setName("");
-      setSheetLink("");
+      setScheduleTime("");
     } catch (err) {
       console.error("Error creating campaign:", err);
     }
   };
 
   const handleStartCampaign = async (campaign: any) => {
+    if (isStarting) return;
     setIsStarting(campaign.id);
     try {
       const response = await fetch(`/api/campaigns/${campaign.id}/start`, {
@@ -99,6 +105,9 @@ export default function Campaigns() {
         
         fetchCampaigns();
         alert("Campaign started successfully! Webhook sent to n8n.");
+      } else {
+        const err = await response.json();
+        alert(err.error || "Failed to start campaign.");
       }
     } catch (err) {
       alert("Failed to start campaign.");
@@ -119,7 +128,7 @@ export default function Campaigns() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Campaigns</h2>
@@ -127,7 +136,7 @@ export default function Campaigns() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-black text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition-opacity"
+          className="bg-black text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
         >
           <Plus className="w-5 h-5" />
           Create Campaign
@@ -173,7 +182,7 @@ export default function Campaigns() {
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="space-y-2">
                       <p className="text-[#666666] font-medium">No campaigns found</p>
-                      <button onClick={() => setIsModalOpen(true)} className="text-black font-bold text-sm underline">Create your first campaign</button>
+                      <button onClick={() => setIsModalOpen(true)} className="text-black font-bold text-sm underline cursor-pointer">Create your first campaign</button>
                     </div>
                   </td>
                 </tr>
@@ -213,7 +222,7 @@ export default function Campaigns() {
                         <button
                           onClick={() => handleStartCampaign(campaign)}
                           disabled={isStarting === campaign.id}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50"
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50 cursor-pointer"
                           title="Start Campaign"
                         >
                           {isStarting === campaign.id ? <Pause className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
@@ -221,12 +230,12 @@ export default function Campaigns() {
                       )}
                       <button 
                         onClick={() => handleDelete(campaign.id)}
-                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg cursor-pointer"
                         title="Delete"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
-                      <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg">
+                      <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer">
                         <MoreHorizontal className="w-5 h-5" />
                       </button>
                     </div>
@@ -256,6 +265,14 @@ export default function Campaigns() {
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-3xl p-8 z-[100] shadow-2xl"
             >
               <h3 className="text-2xl font-bold mb-6">New Campaign</h3>
+              
+              {!profile?.sheet_url && (
+                <div className="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex gap-3 text-orange-800">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p className="text-sm font-medium">You don't have a Google Sheet assigned yet. Please contact support or your admin to set this up before creating campaigns.</p>
+                </div>
+              )}
+
               <form onSubmit={handleCreate} className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[#888888] uppercase tracking-wider">Campaign Name</label>
@@ -264,7 +281,7 @@ export default function Campaigns() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Senior Frontend Batch"
-                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
+                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
                   />
                 </div>
                 <div className="space-y-2">
@@ -272,7 +289,7 @@ export default function Campaigns() {
                   <select 
                     value={agentName}
                     onChange={(e) => setAgentName(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
+                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
                   >
                     <option>Professional Recruiter Alex</option>
                     <option>Casual Outreach Sam</option>
@@ -285,31 +302,22 @@ export default function Campaigns() {
                     type="datetime-local"
                     value={scheduleTime}
                     onChange={(e) => setScheduleTime(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
+                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#888888] uppercase tracking-wider">Google Sheet Link</label>
-                  <input
-                    required
-                    type="url"
-                    value={sheetLink}
-                    onChange={(e) => setSheetLink(e.target.value)}
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    className="w-full px-4 py-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-black"
-                  />
-                </div>
+                
                 <div className="pt-4 flex gap-4">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-4 font-bold rounded-2xl border border-[#E5E5E5] hover:bg-gray-50"
+                    className="flex-1 py-4 font-bold rounded-2xl border border-[#E5E5E5] hover:bg-gray-50 text-sm cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-4 bg-black text-white font-bold rounded-2xl hover:opacity-90 transition-opacity"
+                    disabled={!profile?.sheet_url}
+                    className="flex-1 py-4 bg-black text-white font-bold rounded-2xl hover:opacity-90 transition-opacity text-sm disabled:opacity-50 cursor-pointer"
                   >
                     Create
                   </button>
