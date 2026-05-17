@@ -50,39 +50,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [profile, adminMode, user]);
 
-  const fetchProfile = async (userId: string, retries = 3) => {
+  const fetchProfile = async (userId: string, retries = 3): Promise<void> => {
     try {
       const { data, error } = await supabase
         .from("users")
         .select("*")
         .eq("id", userId)
         .single();
-      
+
       if (error && error.code === "PGRST116") {
-        // Profile doesn't exist yet, wait and retry because DB trigger might be slightly delayed
+        // Profile row not yet created by DB trigger — retry with backoff
         if (retries > 0) {
-          console.log(`Profile not found, retrying... (${retries} retries left)`);
-          setTimeout(() => fetchProfile(userId, retries - 1), 1000);
-          return;
-        } else {
-          console.error("Profile creation failed or timed out.");
-          // We don't artificially create it on frontend anymore, we rely on the DB trigger.
-          setProfile(null);
+          await new Promise(r => setTimeout(r, 1000));
+          return fetchProfile(userId, retries - 1);
         }
+        // Out of retries — fail gracefully, don't block the app
+        console.error("Profile not found after retries — trigger may have failed.");
+        setProfile(null);
       } else if (error) {
-        throw error;
+        console.error("Profile fetch error:", error.message);
+        setProfile(null);
       } else {
         setProfile(data);
       }
     } catch (err) {
-      console.error("Error fetching profile:", err);
-    } finally {
-      if (retries === 0 || profile || true) {
-        // Stop loading once we either found it or ran out of retries
-        // Wait, if it's a retry, we shouldn't set loading false yet.
-        // Let's just rely on the end of the retry chain.
-      }
+      console.error("Unexpected profile fetch error:", err);
+      setProfile(null);
     }
+    // Always stop loading at the end of this call, including the final retry
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -92,9 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id).then(() => {
-          if (mounted) setLoading(false);
-        });
+        fetchProfile(session.user.id); // fetchProfile sets loading(false) internally
       } else {
         setLoading(false);
       }
@@ -108,8 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (event === 'SIGNED_IN' && currentUser) {
         setLoading(true);
-        await fetchProfile(currentUser.id);
-        if (mounted) setLoading(false);
+        await fetchProfile(currentUser.id); // fetchProfile sets loading(false) internally
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         setAdminMode(false);
